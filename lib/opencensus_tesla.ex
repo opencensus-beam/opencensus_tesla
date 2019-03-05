@@ -2,23 +2,20 @@ defmodule OpencensusTesla.Middleware do
   @behaviour Tesla.Middleware
 
   @moduledoc """
-  Short description what it does
+  Tesla middleware for generating spans for outgoing requests.
 
-  Longer description, including e.g. additional dependencies.
-
+  This middleware will create a new child span from the current
+  context and include this context in W3C TraceContext headers
+  with the request.
 
   ### Example usage
   ```
   defmodule MyClient do
     use Tesla
 
-    plug OpencensusTesla.Middleware, most: :common, options: "here"
+    plug OpencensusTesla.Middleware
   end
   ```
-
-  ### Options
-  - `:list` - all possible options
-  - `:with` - their default values
   """
 
   import Opencensus.Trace
@@ -28,10 +25,15 @@ defmodule OpencensusTesla.Middleware do
 
     with_child_span(path, http_attributes(env, uri)) do
       span_ctx = :ocp.current_span_ctx()
-      headers = [{:oc_span_ctx_header.field_name(), :oc_span_ctx_header.encode(span_ctx)}]
-      env = Tesla.run(Tesla.put_headers(env, headers), next)
-      :ocp.put_attribute("http.status_code", env.status)
-      env
+      headers = :oc_propagation_http_tracecontext.to_headers(span_ctx)
+      case Tesla.run(Tesla.put_headers(env, headers), next) do
+        {:ok, env} ->
+          :ocp.put_attribute("http.status_code", env.status)
+          {:ok, env}
+        {:error, _}=e ->
+          # TODO: update span's status to with appropriate error code and message
+          e
+      end
     end
   end
 

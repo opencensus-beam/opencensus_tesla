@@ -45,7 +45,7 @@ defmodule OpencensusTesla.Middleware do
       "http.url" => env.url
     }
 
-    case Tesla.get_header(env, "User-Agent") do
+    case Tesla.get_header(env, "user-agent") do
       nil ->
         attributes
 

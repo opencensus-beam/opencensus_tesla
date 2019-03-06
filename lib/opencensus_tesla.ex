@@ -26,11 +26,13 @@ defmodule OpencensusTesla.Middleware do
     with_child_span(path, http_attributes(env, uri)) do
       span_ctx = :ocp.current_span_ctx()
       headers = :oc_propagation_http_tracecontext.to_headers(span_ctx)
+
       case Tesla.run(Tesla.put_headers(env, headers), next) do
         {:ok, env} ->
           :ocp.put_attribute("http.status_code", env.status)
           {:ok, env}
-        {:error, _}=e ->
+
+        {:error, _} = e ->
           # TODO: update span's status to with appropriate error code and message
           e
       end

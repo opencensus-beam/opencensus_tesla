@@ -16,14 +16,24 @@ defmodule OpencensusTesla.Middleware do
     plug OpencensusTesla.Middleware
   end
   ```
+
+  ### Options
+
+  Following Middleware options are accepted:
+    - `span_name_override` - if provided, will be used as the
+      span name. Otherwise request path is used by default.
+      A function taking the request path as argument and
+      returning a string to use as span name is expected.
   """
 
   import Opencensus.Trace
 
-  def call(env, next, _options) do
+  def call(env, next, options) do
     uri = %URI{path: path} = URI.parse(env.url)
+    span_name_function = Keyword.get(options, :span_name_override)
+    span_name = if span_name_function, do: span_name_function.(path), else: path
 
-    with_child_span(path, http_attributes(env, uri)) do
+    with_child_span(span_name, http_attributes(env, uri)) do
       span_ctx = :ocp.current_span_ctx()
       headers = :oc_propagation_http_tracecontext.to_headers(span_ctx)
 
